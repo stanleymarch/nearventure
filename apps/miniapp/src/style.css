@@ -1,0 +1,196 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   Nearventure Mini App — theme bridge.
+
+   Brand colors (--nv-*) are CONSTANTS (terracotta / teal / forest), kept as
+   RGB triples so Tailwind's `rgb(var(--nv-x) / <alpha>)` helpers work.
+   Surface colors (bg / text / sections / hints) are synced at runtime from
+   Telegram's theme (--tg-theme-* hex → RGB triple) by useThemeBridge, so the
+   app looks native in both light and dark Telegram themes.
+
+   See docs/TELEGRAM_MINIAPP_PLAN.md §7 and the telegram-mini-app-skill §5.
+   ============================================================ */
+@layer base {
+  :root {
+    /* SURFACES — defaults for dev-outside-Telegram (warm light). Overwritten
+       at runtime by useThemeBridge from tg.themeParams. */
+    /* Shared calm map-first neutral palette. Surface values can still be
+       overridden by Telegram's theme bridge at runtime. */
+    --nv-bg: 247 248 244;
+    --nv-surface: 247 248 244;
+    --nv-surface-low: 239 242 235;
+    --nv-surface-high: 227 233 223;
+    --nv-surface-lowest: 255 255 252;
+    --nv-surface-highest: 217 225 211;
+    --nv-surface-variant: 217 225 211;
+    --nv-on-bg: 34 42 35;
+    --nv-on-surface: 34 42 35;
+    --nv-on-surface-variant: 75 87 77;
+    --nv-outline: 116 130 118;
+    --nv-outline-variant: 197 207 195;
+
+    /* BRAND ACCENT — Nearventure constants. Do NOT follow Telegram theme. */
+    --nv-primary: 155 69 0; /* deep terracotta #9B4500 */
+    --nv-on-primary: 255 255 255;
+    --nv-primary-container: 246 195 160;
+    --nv-on-primary-container: 83 38 0;
+    --nv-secondary: 0 101 144; /* teal #006590 (links / water) */
+    --nv-on-secondary: 255 255 255;
+    --nv-secondary-container: 112 199 255;
+    --nv-on-secondary-container: 0 82 118;
+    --nv-tertiary: 50 107 0; /* forest #326B00 (nature / success) */
+    --nv-on-tertiary: 255 255 255;
+    --nv-tertiary-container: 139 254 50;
+    --nv-on-tertiary-container: 11 32 0;
+    --nv-error: 186 26 26;
+    --nv-error-container: 255 218 214;
+
+    /* Safe areas — computed by useThemeBridge (hybrid JS, skill §13). */
+    --safe-top: 0px;
+    --safe-bottom: 0px;
+
+    color-scheme: light;
+  }
+
+  /* When Telegram reports dark (or browser prefers dark), lighten brand
+     accents for contrast on a dark background. */
+  .tg-dark {
+    --nv-primary: 255 202 167; /* light terracotta */
+    --nv-on-primary: 82 34 8;
+    --nv-primary-container: 126 58 15;
+    --nv-on-primary-container: 255 221 200;
+    --nv-secondary: 112 199 255;
+    --nv-on-secondary: 0 49 71;
+    --nv-tertiary: 139 254 50;
+    --nv-on-tertiary: 27 56 0;
+    --nv-error: 255 180 171;
+    /* Dark-mode shadow tints (deeper, cooler). */
+    --nv-shadow-surface: 0 2px 12px rgb(0 0 0 / 0.32);
+    --nv-shadow-floating: 0 12px 36px -8px rgb(0 0 0 / 0.44);
+    --nv-shadow-overlay: 0 24px 64px -12px rgb(0 0 0 / 0.56);
+    color-scheme: dark;
+  }
+
+  html {
+    font-family: 'Geologica', ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background-color: rgb(var(--nv-bg));
+    color: rgb(var(--nv-on-bg));
+    /* Prevent iOS rubber-band behind MainButton. */
+    overscroll-behavior-y: none;
+  }
+
+  /* Inputs ≥16px to prevent iOS auto-zoom on focus (skill §18). */
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+
+  /* Material Symbols base utility. */
+  .ms {
+    font-family: 'Material Symbols Outlined';
+    font-weight: normal;
+    font-style: normal;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    display: inline-block;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    -webkit-font-feature-settings: 'liga';
+    -webkit-font-smoothing: antialiased;
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    user-select: none;
+  }
+  .ms-fill {
+    font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+  }
+}
+
+@layer components {
+  /* Card / section surface — uses shared radius token for consistency. */
+  .nv-card {
+    background-color: rgb(var(--nv-surface-lowest));
+    border: 1px solid rgb(var(--nv-outline-variant) / 0.6);
+    border-radius: var(--nv-radius-card);
+    box-shadow: var(--nv-shadow-surface);
+  }
+
+  .nv-section {
+    background-color: rgb(var(--nv-surface-lowest));
+    border-radius: var(--nv-radius-card);
+  }
+
+  /* Eyebrow / section label — uppercase, small (skill §16). */
+  .nv-eyebrow {
+    text-transform: uppercase;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    color: rgb(var(--nv-on-surface-variant));
+  }
+
+  .nv-hint {
+    color: rgb(var(--nv-on-surface-variant));
+    font-size: 13px;
+  }
+}
+
+/* ============================================================
+   shadcn-vue variable bridge — maps shadcn's expected CSS variables
+   to the Nearventure --nv-* token system so that components like
+   <Card> and <Button> from shadcn-vue render with the same surface,
+   text, and border colors as the custom --nv-* components.
+
+   Without this, shadcn's `bg-card text-card-foreground` classes would
+   have no effect (variables undefined) and visual consistency would
+   break between Home/PoiDetail/Nearby (shadcn) and Catalog/Wizard (--nv-*).
+   ============================================================ */
+@layer base {
+  :root {
+    --background: var(--nv-bg);
+    --foreground: var(--nv-on-bg);
+    --card: var(--nv-surface-lowest);
+    --card-foreground: var(--nv-on-surface);
+    --popover: var(--nv-surface-highest);
+    --popover-foreground: var(--nv-on-surface);
+    --primary: var(--nv-primary);
+    --primary-foreground: var(--nv-on-primary);
+    --secondary: var(--nv-surface-high);
+    --secondary-foreground: var(--nv-on-surface);
+    --muted: var(--nv-surface-low);
+    --muted-foreground: var(--nv-on-surface-variant);
+    --accent: var(--nv-surface-high);
+    --accent-foreground: var(--nv-on-surface);
+    --destructive: var(--nv-error);
+    --destructive-foreground: var(--nv-on-primary);
+    --border: var(--nv-outline-variant);
+    --input: var(--nv-outline-variant);
+    --ring: var(--nv-primary);
+    --radius: 0.625rem;
+
+    /* ── Nearventure shared radius / shadow / surface tokens ──
+       Mirror of the web frontend's design code (see apps/frontend/src/style.css)
+       so both surfaces use one visual language. */
+    --nv-radius-panel: 1.25rem; /* 20px — bottom drawer, sheets */
+    --nv-radius-card: 1rem; /* 16px — POI cards, summary */
+    --nv-radius-control: 0.75rem; /* 12px — buttons, toggles */
+    --nv-radius-chip: 0.625rem; /* 10px — interest chips */
+    --nv-shadow-surface: 0 2px 12px rgb(35 25 20 / 0.10);
+    --nv-shadow-floating: 0 12px 36px -8px rgb(35 25 20 / 0.16);
+    --nv-shadow-overlay: 0 24px 64px -12px rgb(35 25 20 / 0.22);
+    --nv-surface-content: 0.97;
+    --nv-duration-fast: 160ms;
+    --nv-duration-base: 220ms;
+  }
+}

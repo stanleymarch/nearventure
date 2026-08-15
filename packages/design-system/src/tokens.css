@@ -1,0 +1,112 @@
+/* Nearventure Semantic Design Tokens
+ * Material 3 warm-toned palette — master source.
+ * Apps should import this and override only surface-specific values.
+ */
+
+:root {
+  /* ── Primary (warm brand) ── */
+  --nv-primary: 180 63 38;
+  --nv-on-primary: 255 255 255;
+  --nv-primary-container: 255 219 205;
+  --nv-on-primary-container: 64 27 14;
+
+  /* ── Secondary (complementary) ── */
+  --nv-secondary: 143 77 57;
+  --nv-on-secondary: 255 255 255;
+  --nv-secondary-container: 255 219 205;
+  --nv-on-secondary-container: 59 33 19;
+
+  /* ── Tertiary (map accent) ── */
+  --nv-tertiary: 100 96 48;
+  --nv-on-tertiary: 255 255 255;
+  --nv-tertiary-container: 234 229 169;
+  --nv-on-tertiary-container: 30 29 2;
+
+  /* ── Surface / Background ── */
+  --nv-surface: 255 248 245;
+  --nv-on-surface: 40 26 22;
+  --nv-surface-lowest: 255 248 245;
+  --nv-surface-dim: 234 216 210;
+  --nv-surface-container: 249 234 228;
+  --nv-surface-container-high: 243 228 222;
+  --nv-surface-container-lowest: 250 247 245;
+
+  /* ── Outline ── */
+  --nv-outline: 132 115 109;
+  --nv-outline-variant: 194 178 172;
+
+  /* ── Error ── */
+  --nv-error: 179 38 30;
+  --nv-on-error: 255 255 255;
+  --nv-error-container: 255 218 214;
+
+  /* ── Utility ── */
+  --nv-inverse-surface: 57 40 36;
+  --nv-inverse-on-surface: 255 237 231;
+  --nv-inverse-primary: 255 181 153;
+  --nv-shadow: 0 0 2 rgba(35 25 20 / 0.16), 0 4 16 rgba(35 25 20 / 0.08);
+  --nv-elevation: 0 1 3 rgba(35 25 20 / 0.08), 0 4 8 rgba(35 25 20 / 0.04);
+
+  /* ── Route tokens ── */
+  --nv-route-line: 60 95 195;
+  --nv-route-line-width: 4px;
+  --nv-route-glow: 0 0 6 rgba(60 95 195 / 0.3);
+
+  /* ── POI category defaults (used when category-specific token missing) ── */
+  --nv-poi-default-marker: 180 63 38;
+  --nv-poi-selected-glow: 0 0 0 4 rgba(180 63 38 / 0.25);
+
+  /* ── Glass panel ── */
+  --nv-glass-bg: rgb(var(--nv-surface-lowest) / 0.88);
+  --nv-glass-blur: 16px;
+}
+
+/* Dark mode — adapted Material 3 dark scheme */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --nv-primary: 255 181 153;
+    --nv-on-primary: 91 40 18;
+    --nv-primary-container: 134 51 27;
+    --nv-on-primary-container: 255 219 205;
+
+    --nv-secondary: 255 181 153;
+    --nv-on-secondary: 84 39 22;
+    --nv-secondary-container: 117 60 40;
+    --nv-on-secondary-container: 255 219 205;
+
+    --nv-tertiary: 206 201 143;
+    --nv-on-tertiary: 52 50 7;
+    --nv-tertiary-container: 75 72 25;
+    --nv-on-tertiary-container: 234 229 169;
+
+    --nv-surface: 33 24 20;
+    --nv-on-surface: 219 206 200;
+    --nv-surface-lowest: 20 14 11;
+    --nv-surface-dim: 33 24 20;
+    --nv-surface-container: 46 36 31;
+    --nv-surface-container-high: 57 46 41;
+    --nv-surface-container-lowest: 14 9 6;
+
+    --nv-outline: 157 141 135;
+    --nv-outline-variant: 84 70 65;
+
+    --nv-error: 255 180 171;
+    --nv-on-error: 105 0 5;
+    --nv-error-container: 147 0 10;
+
+    --nv-inverse-surface: 235 224 218;
+    --nv-inverse-on-surface: 33 24 20;
+    --nv-inverse-primary: 158 59 34;
+
+    --nv-shadow: 0 0 2 rgba(0 0 0 / 0.4), 0 4 16 rgba(0 0 0 / 0.3);
+    --nv-elevation: 0 1 3 rgba(0 0 0 / 0.5), 0 4 8 rgba(0 0 0 / 0.3);
+
+    --nv-glass-bg: rgb(var(--nv-surface-container) / 0.85);
+  }
+}
+
+/* Telegram Mini App — reuse M3 surface but respect tg theme */
+:root.tg, .tg {
+  /* By default keep Nearventure palette; Telegram WebApp theme vars
+   * can be mapped in a future spec when targeting theming parity. */
+}

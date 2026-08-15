@@ -1,0 +1,28 @@
+/* Nearventure Typography Scale
+ * Geologica (brand / display) + Inter (body / controls)
+ */
+
+:root {
+  /* ── Font families ── */
+  --nv-font-display: 'Geologica', system-ui, sans-serif;
+  --nv-font-body: 'Inter', system-ui, sans-serif;
+  --nv-font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+
+  /* ── Typography scale (Geologica) ── */
+  --nv-display-lg: 700 2.5rem/1.2 var(--nv-font-display);
+  --nv-display-md: 600 2rem/1.25 var(--nv-font-display);
+  --nv-display-sm: 600 1.5rem/1.3 var(--nv-font-display);
+
+  /* ── Typography scale (Inter) ── */
+  --nv-headline: 600 1.25rem/1.4 var(--nv-font-body);
+  --nv-title: 600 1rem/1.5 var(--nv-font-body);
+  --nv-body: 400 0.875rem/1.6 var(--nv-font-body);
+  --nv-body-sm: 400 0.8125rem/1.5 var(--nv-font-body);
+  --nv-label: 500 0.75rem/1.4 var(--nv-font-body);
+  --nv-caption: 400 0.6875rem/1.4 var(--nv-font-body);
+  --nv-tabular: 600 1rem/1 var(--nv-font-body);
+
+  /* ── Tabular numerals for route stats ── */
+  --nv-font-numeric: 'Inter', 'Geologica', system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+}

@@ -1,0 +1,127 @@
+# ── Dependencies ──────────────────────────────────────────────
+node_modules/
+
+# ── Build outputs ─────────────────────────────────────────────
+apps/frontend/dist/
+apps/backend/dist/
+apps/miniapp/dist/
+**/*.tsbuildinfo
+*.pyc
+__pycache__/
+
+# ── Environment & secrets ────────────────────────────────────
+.env
+.env.local
+.env.*.local
+.env.prod
+docker/.env.prod
+apps/backend/.env
+apps/backend/.env.bak
+apps/frontend/.env
+apps/miniapp/.env
+# Stale e2e env backups (committed by mistake earlier)
+e2e/.env.vps
+e2e/.env.local-backup
+
+# ── IDE / editor ─────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ── OS ───────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Test / e2e artifacts ─────────────────────────────────────
+e2e/test-results/
+e2e/playwright-report/
+e2e/videos/
+e2e/traces/
+playwright-report/
+playwright/.cache/
+test-results/
+.pytest_cache/
+
+# ── Manual test fixtures (kept locally, not part of public repo) ──
+.test-data/
+test-data/
+
+# ── Databases (binary, regenerated) ──────────────────────────
+*.sqlite
+*.sqlite-journal
+*.sqlite3
+data/pipeline.db
+
+# ── Nearventure data services (OSM PBF, graph cache, SRTM tiles) ──
+# Heavy binary data (≈2 GB). Fetched/built locally via scripts/download-osm.sh
+# and docker compose; never committed. See docs/deployment.md.
+docker/data/
+
+# ── Runtime uploads (POI media etc.) ─────────────────────────
+apps/backend/media/
+
+# ── Logs ─────────────────────────────────────────────────────
+logs/
+*.log
+
+# ── Coverage ─────────────────────────────────────────────────
+coverage/
+.coverage
+.coverage.*
+
+# ── Scratch / temporary ──────────────────────────────────────
+.tmp/
+tmp/
+temp/
+.audit-shots/
+
+# ── Personal research & design drafts (author-specific) ───────
+docs/research/
+
+# ── Stale root-level deploy folder (replaced by docs/deployment.md) ─
+/deploy/
+
+# ── Personal agent configuration (pi / local tooling) ────────
+# Author-specific workflow files (subagents, MCP config with personal API keys,
+# installed-skills lockfile). Kept locally; NOT part of the public project.
+.pi/
+.agents/
+skills-lock.json
+
+# ── Private working notes (audits, research, deploy notes, logs) ──
+# Internal author-local docs, kept in-repo for convenience but never committed.
+.private-notes/
+
+# ── Local POI exports from poi-toolkit runs — never committed ──
+data/export/
+
+# ── Release archives (local deploy artifacts, never committed) ──
+*.tar.gz
+
+# ── Author-local deploy helpers — never committed ───────────
+scripts/ssh.sh
+scripts/sftp.sh
+scripts/vps-run.sh
+scripts/vps-put.sh
+.deploy-manual.md
+.deployignore
+frontend-dist*
+sftp-test.txt
+prod-*.json
+
+# ── Subagent session artifacts ───────────────────────────────
+.pi-subagents/
+
+# ── Local-only junk: secret backups, personal tooling state, temp scripts ──
+# Root-scoped so legitimate nested files are unaffected.
+/.env.bak*
+/.superpowers/
+/.tmp*
+/nul
+/screenshots/
+/_*.ps1
+/_*.bat
+/_*.js
+/_*.json
+/fix_*.bat

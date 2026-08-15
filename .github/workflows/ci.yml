@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Every job receives only the repository contents needed by checkout.
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Build, typecheck, and unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Build workspaces
+        run: npm run build
+
+      - name: Typecheck frontend
+        run: npm run typecheck --workspace=apps/frontend
+
+      - name: Test backend units
+        run: npm test --workspace=apps/backend
+
+      - name: Test frontend units
+        run: npm test --workspace=apps/frontend
+
+      - name: Test Mini App units
+        run: npm test --workspace=apps/miniapp
+
+      # Playwright E2E, production commands, and database-reset commands are
+      # intentionally excluded: they require external services or are destructive.

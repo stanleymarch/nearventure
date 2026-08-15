@@ -1,0 +1,210 @@
+# Nearventure — full production stack.
+#
+#   nginx (:80,:443) ── TLS, serves SPA, proxies /api → app
+#      │
+#      ├── app (:3000, 127.0.0.1 only) — NestJS API + built SPA
+#      │      └── db (:5432, 127.0.0.1)        — PostGIS + pgvector
+#      │      └── graphhopper (:8981, internal) — routing (Kirov PBF + SRTM)
+#      └── certbot                          — Let's Encrypt renewal loop
+#
+# Only nginx is reachable from the outside (ports 80/443). Everything else is
+# on the private `nearventure_net` docker network or bound to 127.0.0.1.
+#
+# Bring up:
+#   cp .env.prod.example .env.prod && edit it
+#   docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d
+#   bash scripts/deploy/init-letsencrypt.sh   # first-time TLS cert
+
+services:
+  db:
+    build: ./postgres
+    container_name: nearventure-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-nearventure}
+      POSTGRES_USER: ${DB_USERNAME:-nearventure}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+    networks: [nearventure_net]
+    # 127.0.0.1 only — admin tools / debugging; NOT public.
+    ports: ["127.0.0.1:5432:5432"]
+    volumes:
+      - ./postgres/init-extensions.sql:/docker-entrypoint-initdb.d/00-init-extensions.sql:ro
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-nearventure} -d ${DB_DATABASE:-nearventure}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  graphhopper:
+    # Official graphhopper/graphhopper image was removed from Docker Hub. The
+    # well-maintained community build (Israel Hiking Map) tracks upstream GH:
+    # tag 11.0 == upstream GraphHopper 11.0 release.
+    #
+    # Image entrypoint is fixed: ./graphhopper.sh -c config-example.yml
+    # So we mount our config.yml AT /graphhopper/config-example.yml (read-only)
+    # and do NOT override `command` (the entrypoint already runs the server).
+    image: israelhikingmap/graphhopper:11.0
+    container_name: nearventure-graphhopper
+    restart: unless-stopped
+    environment:
+      # Explicit production cache contract: /data/default-gh is bind-mounted
+      # from docker/data/default-gh; config.yml intentionally remains unchanged.
+      # Operator-observed baseline (2026-08-12): the seven-profile PFO import
+      # repeatedly OOMed in ForkJoinPool without ActiveProcessorCount=1; this
+      # setting imported healthily using about 2.588 GiB. Revalidate per import.
+      - JAVA_OPTS=-Xmx3500m -Xms1500m -XX:ActiveProcessorCount=1 -Ddw.graphhopper.graph.location=/data/default-gh
+    networks: [nearventure_net]
+    # Internal only (app talks to it over the docker net). Never public.
+    expose: ["8981"]
+    # Bind mount: the PBF + runtime-selected default-gh cache live on the host.
+    # config.yml is mounted at the path the entrypoint already reads.
+    volumes:
+      - ./graphhopper/config.yml:/graphhopper/config-example.yml:ro
+      - ./graphhopper/models:/graphhopper/models:ro
+      - ./data:/data
+
+  app:
+    build:
+      context: ../
+      dockerfile: docker/app/Dockerfile
+      args:
+        # Non-secret full archive commit SHA; see docs/deployment.md.
+        GIT_SHA: ${GIT_SHA:-}
+    # Shared local image name: the one-shot `poi-importer` service (profile
+    # "import") reuses this exact image instead of building its own copy.
+    image: nearventure-app:local
+    container_name: nearventure-app
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+      graphhopper: { condition: service_started }
+    networks: [nearventure_net]
+    # 127.0.0.1 only — nginx proxies; NOT public.
+    ports: ["127.0.0.1:3000:3000"]
+    environment:
+      NODE_ENV: production
+      NV_AUTO_POLICY: ${NV_AUTO_POLICY:-v1}
+      # ── Database ────────────────────────────────────────────────
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USERNAME: ${DB_USERNAME:-nearventure}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      DB_DATABASE: ${DB_DATABASE:-nearventure}
+      DB_LOGGING: ${DB_LOGGING:-false}
+      # ── Server ─────────────────────────────────────────────────
+      PORT: 3000
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      ADMIN_LOGIN: ${ADMIN_LOGIN:?ADMIN_LOGIN is required}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
+      CORS_ORIGIN: https://${DOMAIN:?DOMAIN is required}
+      GRAPHHOPPER_URL: http://graphhopper:8989
+      GRAPHHOPPER_PATH_DETAILS: ${GRAPHHOPPER_PATH_DETAILS:-}
+      # Only nginx may set X-Forwarded-For: the rate-limit guard honors a
+      # single-literal XFF solely from this trusted proxy peer (nginx writes
+      # $remote_addr into XFF, see nginx.conf.template). Must match the pinned
+      # nginx container IP below.
+      TRUSTED_PROXIES: 172.28.0.10
+      # ── Public URL & Mini App slug (/tg/) ─────────────────────
+      # PUBLIC_URL builds the web_app button URL the bot sends.
+      PUBLIC_URL: https://${DOMAIN}
+      # ── Telegram bot (webhook in prod) + analytics push ───────
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN is required}
+      TELEGRAM_WEBHOOK_DOMAIN: ${DOMAIN}
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:?TELEGRAM_WEBHOOK_SECRET is required}
+      ADMIN_TELEGRAM_CHAT_ID: ${ADMIN_TELEGRAM_CHAT_ID:-}
+      # ── Optional external support links (consumed by TelegramModule) ──
+      DONATE_BOOSTY_URL: ${DONATE_BOOSTY_URL:-}
+      DONATE_CLOUDTIPS_URL: ${DONATE_CLOUDTIPS_URL:-}
+    volumes:
+      # POI media uploads (curated photos) — persist across restarts.
+      - app_media:/app/media
+
+  # ── One-shot POI importer (C6) ──────────────────────────────────────────
+  # NOT started by `up -d` (profile "import"). Run explicitly, after the
+  # shared image is built:
+  #
+  #   COMPOSE="docker compose --env-file docker/.env.prod -f docker/docker-compose.prod.yml"
+  #   $COMPOSE build app
+  #   $COMPOSE --profile import run --rm poi-importer --dry-run --run-dir releases/<tag>
+  #   $COMPOSE --profile import run --rm poi-importer --run-dir releases/<tag>
+  #
+  # The trusted-root bundle directory is mounted READ-ONLY; the network-facing
+  # `app` service has NO access to it (no mount, no port, private network
+  # only, no credentials beyond DB). The entrypoint is the compiled CLI and
+  # the default command is a safe no-op (`--help`): nothing is imported
+  # automatically — an import always requires an explicit `--run-dir`.
+  poi-importer:
+    image: nearventure-app:local
+    container_name: nearventure-poi-importer
+    profiles: ["import"]
+    depends_on:
+      db: { condition: service_healthy }
+    networks: [nearventure_net]
+    # No `ports`: non-network-facing one-shot maintenance container.
+    environment:
+      NODE_ENV: production
+      # ── Database (same settings as `app`; nothing else) ───────────────
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USERNAME: ${DB_USERNAME:-nearventure}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      DB_DATABASE: ${DB_DATABASE:-nearventure}
+      # Admin-owned immutable bundle root — see docs/data-refresh.md.
+      POI_IMPORT_TRUSTED_ROOT: /srv/nearventure/imports
+    volumes:
+      # Host bundle dir, read-only. Must be root-owned 0750 and never written
+      # by the app or any network-facing process (see docs/data-refresh.md).
+      - /srv/nearventure/imports:/srv/nearventure/imports:ro
+    entrypoint: ["node", "dist/importer/poi-importer.cli.js"]
+    command: ["--help"]
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: nearventure-nginx
+    restart: unless-stopped
+    depends_on: [app]
+    networks:
+      nearventure_net:
+        # Pinned so the app can verify the trusted proxy peer (TRUSTED_PROXIES).
+        ipv4_address: 172.28.0.10
+    # THE ONLY public ports.
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./data/tiles:/var/tiles:ro
+      - certbot_www:/var/www/certbot:ro
+      - certbot_conf:/etc/letsencrypt:ro
+    environment:
+      DOMAIN: ${DOMAIN:?DOMAIN is required}
+
+  # Let's Encrypt renewal loop (12h). First cert is obtained by
+  # scripts/deploy/init-letsencrypt.sh; this just keeps it fresh.
+  certbot:
+    image: certbot/certbot:latest
+    container_name: nearventure-certbot
+    restart: unless-stopped
+    networks: [nearventure_net]
+    volumes:
+      - certbot_www:/var/www/certbot
+      - certbot_conf:/etc/letsencrypt
+    entrypoint: >
+      /bin/sh -c "trap exit TERM;
+      echo 'certbot renew loop started';
+      while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h; done;"
+
+networks:
+  nearventure_net:
+    driver: bridge
+    # Fixed subnet so nginx's IP is deterministic (see TRUSTED_PROXIES above).
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+volumes:
+  db_data:
+  app_media:
+  certbot_www:
+  certbot_conf:

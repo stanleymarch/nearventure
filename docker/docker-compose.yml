@@ -1,0 +1,58 @@
+# Nearventure — data services for local dev and production parity.
+#
+# Bring up (run from repo root):
+#   docker compose -f docker/docker-compose.yml up -d
+#
+# First start of `graphhopper` imports the OSM PBF and downloads SRTM
+# elevation tiles (~1–3 min). Subsequent starts load the cached graph.
+#
+# Requires docker/data/pfo-latest.osm.pbf — run:
+#   bash scripts/download-osm.sh
+# before starting graphhopper.
+
+services:
+  db:
+    build: ./postgres
+    container_name: nearventure-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-nearventure}
+      POSTGRES_USER: ${POSTGRES_USER:-nearventure}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nearventure_dev}
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres/init-extensions.sql:/docker-entrypoint-initdb.d/00-init-extensions.sql:ro
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nearventure} -d ${POSTGRES_DB:-nearventure}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  graphhopper:
+    build: ./graphhopper
+    container_name: nearventure-graphhopper
+    environment:
+      # -Xms == -Xmx avoids heap-resize pauses. UseParallelGC for import speed.
+      # 7 custom profiles × landmarks on a 14-region PFO graph peak ~6–8 GB;
+      # 10 g headroom fits the dev Docker VM (16 GB) with room for db + backend.
+      - JAVA_OPTS=-Xmx10g -Xms10g -XX:+UseParallelGC
+    volumes:
+      - ./graphhopper/config.yml:/graphhopper/config.yml:ro
+      # Mount the local custom models (mtb.json etc.) so we can override
+      # the bundled ones in the GH jar. The custom_models.directory setting
+      # in config.yml points GH at this folder.
+      - ./graphhopper/models:/graphhopper/models:ro
+      - ./data:/data
+    ports:
+      - "8981:8989"
+    # GH 11 reads config path as positional arg. `$$JAVA_OPTS` (double-$ escapes
+    # compose interpolation) is expanded by sh at container runtime from the
+    # JAVA_OPTS env above — a bare `$JAVA_OPTS` would be substituted by compose
+    # from the *host* env (usually empty) and silently ignored.
+    command: sh -c "java $$JAVA_OPTS -jar graphhopper.jar server /graphhopper/config.yml"
+    restart: unless-stopped
+
+volumes:
+  db_data:

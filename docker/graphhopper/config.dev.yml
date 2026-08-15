@@ -1,0 +1,78 @@
+# Nearventure — LOCAL DEV GraphHopper config (fast, lightweight import).
+#
+# Differences from config.yml (production):
+#   - 4 profiles instead of 7 (drops bike_touring, mtb_leisure, foot_scenic —
+#     production-only scenic tuning variants). car/bike/foot/mtb cover every
+#     frontend transport + interest combination used by QA.
+#   - NO profiles_lm: landmark preparation is the memory/time hog (~210 MB and
+#     ~1 min per profile). Flexible (A*) routing still supports round_trip /
+#     alternative_route — just slower, which is fine for local QA.
+#   - car keeps CH (cheap, fast point-to-point).
+#
+# This is NOT for production. Use config.yml there.
+graphhopper:
+  datareader.file: /data/pfo-latest.osm.pbf
+  graph.location: /data/graph-cache
+
+  graph.encoded_values: |
+    car_access, car_average_speed, country, road_class, roundabout, max_speed,
+    road_environment, surface, track_type, toll,
+    foot_access, foot_average_speed, foot_priority, foot_road_access, hike_rating,
+    average_slope, max_slope,
+    bike_access, bike_average_speed, bike_priority, bike_road_access, bike_network, mtb_rating,
+    mtb_access, mtb_average_speed, mtb_priority, mtb_network,
+    ferry_speed
+
+  profiles:
+    - name: car
+      custom_model_files: [car.json]
+    - name: bike
+      custom_model_files: [bike.json, bike_elevation.json]
+    - name: mtb
+      custom_model_files: [nearventure-mtb.json]
+    - name: foot
+      custom_model_files: [foot.json, foot_elevation.json]
+
+  profiles_ch:
+    - profile: car
+
+  profiles_lm: []
+
+  graph.elevation.provider: srtm
+  graph.elevation.cache_dir: /data/srtm-cache
+  graph.elevation.clear_elevation_cache: false
+  graph.elevation.dataaccess: RAM_STORE
+  graph.elevation.interpolate: bilinear
+  graph.elevation.edge_smoothing: ramer
+  graph.elevation.edge_smoothing.ramer.max_elevation: 5
+  graph.elevation.long_edge_sampling_distance: 60
+  graph.elevation.way_point_max_distance: 10
+  graph.elevation.interpolate_bridges_and_tunnels: true
+
+  routing.non_ch.max_waypoint_distance: 1000000
+  routing.timeout_ms: 300000
+  routing.max_visited_nodes: 1000000
+  routing.snap_preventions_default: tunnel, bridge, ferry
+
+  import.osm.ignored_highways: ''
+  prepare.min_network_size: 200
+  prepare.subnetworks.threads: 1
+  custom_models.directory: /graphhopper/models
+
+server:
+  application_connectors:
+    - type: http
+      port: 8989
+      bind_host: 0.0.0.0
+  admin_connectors:
+    - type: http
+      port: 8990
+      bind_host: 0.0.0.0
+  request_log:
+    appenders: []
+
+logging:
+  appenders:
+    - type: console
+      time_zone: UTC
+      log_format: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"

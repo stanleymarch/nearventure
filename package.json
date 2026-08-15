@@ -1,0 +1,66 @@
+{
+  "name": "nearventure",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/backend",
+    "apps/frontend",
+    "apps/miniapp",
+    "e2e",
+    "packages/design-system",
+    "packages/ui-vue",
+    "packages/map-runtime",
+    "packages/itinerary-client"
+  ],
+  "scripts": {
+    "dev:backend": "npm run start:dev --workspace=apps/backend",
+    "dev:frontend": "npm run dev --workspace=apps/frontend",
+    "dev": "concurrently -n backend,frontend -c yellow,green \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend:log": "node scripts/log-runner.mjs backend npm run dev:backend",
+    "dev:frontend:log": "node scripts/log-runner.mjs frontend npm run dev:frontend",
+    "dev:miniapp:log": "node scripts/log-runner.mjs miniapp npm run dev --workspace=apps/miniapp",
+    "dev:miniapp": "npm run dev --workspace=apps/miniapp",
+    "kill:backend": "node scripts/kill-service.mjs backend",
+    "kill:frontend": "node scripts/kill-service.mjs frontend",
+    "build:frontend": "npm run build --workspace=apps/frontend",
+    "build:backend": "npm run build --workspace=apps/backend",
+    "build:miniapp": "npm run build --workspace=apps/miniapp",
+    "build": "npm run build:frontend && npm run build:backend && npm run build:miniapp",
+    "start:prod": "npm run start:prod --workspace=apps/backend",
+    "test:e2e": "playwright test --config=playwright.config.mts --workers=1",
+    "test:e2e:ui": "npm run test:ui --workspace=e2e",
+    "db:reset": "npm run db:reset --workspace=apps/backend",
+    "create-admin": "npm run create-admin --workspace=apps/backend",
+    "test": "playwright test --config=playwright.config.mts --workers=1",
+    "test:routing:live": "npm run test:routing:live --workspace=apps/backend"
+  },
+  "devDependencies": {
+    "@types/multer": "^2.1.0",
+    "concurrently": "^9.1.0",
+    "vitest": "^3.2.6"
+  },
+  "dependencies": {
+    "@protomaps/basemaps": "^5.7.2",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "fast-xml-parser": "^5.9.3",
+    "lucide-vue-next": "^1.0.0",
+    "maplibre-contour": "^0.1.0",
+    "maplibre-gl": "^5.24.0",
+    "motion-v": "^2.3.0",
+    "pmtiles": "^4.4.1",
+    "reka-ui": "^2.10.1",
+    "sharp": "^0.33.5",
+    "sqlite3": "^5.1.7",
+    "tailwind-merge": "^3.6.0",
+    "tailwindcss-animate": "^1.0.7",
+    "telegraf": "^4.16.3",
+    "vue-sonner": "^2.0.9"
+  },
+  "allowScripts": {
+    "@protomaps/basemaps@5.7.2": true,
+    "pmtiles@4.4.1": true
+  }
+}
