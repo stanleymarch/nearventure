@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- No-FOUC theme bootstrap: apply `.dark` on <html> BEFORE first paint,
+         from the saved preference / system setting, so dark-mode users never
+         see a light flash. Mirrors useTheme.ts logic (default = light). -->
+    <script>
+      (function () {
+        try {
+          var pref = localStorage.getItem('theme_preference');
+          var dark =
+            pref === 'dark' ||
+            (pref === 'system' &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (dark) {
+            document.documentElement.classList.add('dark');
+            document.documentElement.style.colorScheme = 'dark';
+          }
+        } catch (e) {}
+      })();
+    </script>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+    <meta name="theme-color" content="#fff8f6" />
+    <meta name="description" content="Nearventure — стройте веломаршруты и прогулки к интересным местам Кировской области." />
+    <title>Nearventure — маршруты и приключения</title>
+
+    <!-- Fonts: Inter (UI / body) + Geologica (display / headings).
+         Split rationale: Geologica is a display face — hard to read at small UI sizes.
+         Inter carries dense body/labels; Geologica stays on headings & brand.
+         Icons are Lucide (lucide-vue-next SVG components), no font required. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geologica:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

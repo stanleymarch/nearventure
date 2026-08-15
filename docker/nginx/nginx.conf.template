@@ -1,0 +1,151 @@
+# Nearventure nginx config — rendered by the nginx image's envsubst entrypoint
+# (DOMAIN comes from the compose environment). ${VAR} is substituted at boot.
+#
+# TLS: nginx references /etc/letsencrypt/live/$DOMAIN/... which doesn't exist
+# until the first certificate is issued. scripts/deploy/init-letsencrypt.sh
+# therefore plants a temporary self-signed cert there first (so nginx boots),
+# then obtains the real Let's Encrypt cert and reloads nginx.
+
+upstream nearventure_app {
+    server app:3000;
+}
+
+# ---------- HTTP: ACME challenge + redirect to HTTPS ----------
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${DOMAIN} www.${DOMAIN};
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+# ---------- HTTPS: SPA + API ----------
+server {
+    listen 443 ssl;
+    http2 on;
+    listen [::]:443 ssl;
+    server_name ${DOMAIN} www.${DOMAIN};
+
+    ssl_certificate     /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+
+    # Security headers for all locations (inherited where not overridden)
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Strict-Transport-Security "max-age=31536000" always;
+
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_proxied any;
+    gzip_comp_level 5;
+    gzip_types text/plain text/css application/json application/javascript application/xml text/xml image/svg+xml application/geo+json;
+
+    client_max_body_size 25m;
+
+    # API → NestJS backend.
+    location /api/ {
+        proxy_pass http://nearventure_app;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        # Security contract (rate-limit identity): OVERWRITE the header with
+        # the trusted $remote_addr instead of appending $proxy_add_x_forwarded_for.
+        # A client-supplied X-Forwarded-For (or a comma chain) must never reach
+        # the backend — otherwise spoofed per-request IPs mint fresh rate-limit
+        # buckets. The backend only honors a single-literal XFF from trusted
+        # proxies (TRUSTED_PROXIES), so this stays in sync with the guard.
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 65s;
+    }
+
+    # Mini App static (/tg/) — hash-routed SPA. Must be frameable by
+    # Telegram Web K (web.telegram.org), so NO X-Frame-Options here.
+    # CSP frame-ancestors overrides X-Frame-Options in modern browsers.
+    location /tg/ {
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        add_header Strict-Transport-Security "max-age=31536000" always;
+        add_header Content-Security-Policy "frame-ancestors 'self' https://web.telegram.org https://*.telegram.org;" always;
+        proxy_pass http://nearventure_app;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        # Security contract (rate-limit identity): OVERWRITE the header with
+        # the trusted $remote_addr instead of appending $proxy_add_x_forwarded_for.
+        # A client-supplied X-Forwarded-For (or a comma chain) must never reach
+        # the backend — otherwise spoofed per-request IPs mint fresh rate-limit
+        # buckets. The backend only honors a single-literal XFF from trusted
+        # proxies (TRUSTED_PROXIES), so this stays in sync with the guard.
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Vector basemap tiles (PMTiles) — served directly by nginx. The PMTiles
+    # client issues HTTP range requests, which nginx satisfies from the file.
+    # Volume: ./data/tiles -> /var/tiles (see docker-compose.prod.yml, nginx).
+    #
+    # Cache: 1y + immutable is SAFE because the frontend cache-busts via a
+    # `?v=<BUILD_DATE>` query (VITE_PMTILES_VERSION, see map-styles.ts). After
+    # rebuilding pfo.pmtiles, bump that version and redeploy the SPA — clients
+    # fetch the new file under the new URL. Never swap the file in place without
+    # bumping the version or returning visitors keep the stale copy for a year.
+    location /tiles/ {
+        alias /var/tiles/;
+        autoindex off;
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        add_header Access-Control-Allow-Origin "*" always;
+        add_header X-Content-Type-Options "nosniff" always;
+    }
+
+    # Raster basemap tiles for the Mini App (Leaflet). The Mini App uses Leaflet
+    # (not MapLibre) because Telegram WebView has fragile WebGL — but Leaflet
+    # loads its tiles from an EXTERNAL host, which Telegram WebView often can't
+    # resolve/reach (ERR_NAME_NOT_RESOLVED / blocked). Proxying Cyclosm through
+    # nginx makes the tiles SAME-ORIGIN (nearventure.ru/raster-tiles/...), which
+    # the WebView fetches reliably. Server-side Cyclosm is reachable and fast.
+    location /raster-tiles/ {
+        proxy_pass https://a.tile-cyclosm.openstreetmap.fr/cyclosm/;
+        proxy_http_version 1.1;
+        proxy_ssl_server_name on;
+        proxy_set_header Host a.tile-cyclosm.openstreetmap.fr;
+        proxy_set_header User-Agent "Nearventure/1.0 (contact@nearventure.ru)";
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 10s;
+        expires 7d;
+        add_header Cache-Control "public, max-age=604800" always;
+        add_header Access-Control-Allow-Origin "*" always;
+    }
+
+    # Everything else → backend's SPA static + index.html fallback.
+    location / {
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        add_header Strict-Transport-Security "max-age=31536000" always;
+        proxy_pass http://nearventure_app;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        # Security contract (rate-limit identity): OVERWRITE the header with
+        # the trusted $remote_addr instead of appending $proxy_add_x_forwarded_for.
+        # A client-supplied X-Forwarded-For (or a comma chain) must never reach
+        # the backend — otherwise spoofed per-request IPs mint fresh rate-limit
+        # buckets. The backend only honors a single-literal XFF from trusted
+        # proxies (TRUSTED_PROXIES), so this stays in sync with the guard.
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}

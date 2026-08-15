@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "name": "example-dev-graph",
+  "points": {
+    "start": { "lon": 13.38886, "lat": 52.517037 },
+    "finish": { "lon": 13.397634, "lat": 52.529407 },
+    "park": { "lon": 13.378, "lat": 52.516 }
+  },
+  "scenarios": [
+    {
+      "id": "short-network-leg",
+      "kind": "point-to-point",
+      "profiles": ["foot", "bike", "car"],
+      "start": "start",
+      "finish": "finish",
+      "expect": {
+        "networkConfirmed": true,
+        "minDistanceMeters": 100,
+        "maxDistanceMeters": 10000,
+        "maxDurationSeconds": 7200,
+        "maxLatencyMs": 10000,
+        "roadFacts": { "configuredOnly": true }
+      }
+    },
+    {
+      "id": "seeded-small-loop",
+      "kind": "round-trip",
+      "profiles": ["foot", "bike"],
+      "start": "park",
+      "distanceMeters": 3000,
+      "seed": 20260809,
+      "expect": {
+        "networkConfirmed": true,
+        "minDistanceMeters": 500,
+        "maxDistanceMeters": 12000,
+        "maxDurationSeconds": 10800,
+        "maxLatencyMs": 15000,
+        "maxClosureGapMeters": 100,
+        "overlapClass": "clean",
+        "roadFacts": { "configuredOnly": true }
+      }
+    },
+    {
+      "id": "short-reachable-area",
+      "kind": "isochrone",
+      "profiles": ["foot", "bike"],
+      "point": "start",
+      "timeLimitMinutes": 15,
+      "expect": {
+        "networkConfirmed": true,
+        "maxLatencyMs": 15000
+      }
+    }
+  ]
+}

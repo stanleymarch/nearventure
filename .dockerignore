@@ -1,0 +1,17 @@
+# Nearventure production build — keep the Docker context lean.
+**/node_modules
+**/dist
+.git
+.github
+**/.env*
+**/*.log
+logs/
+.tmp/
+playwright-report/
+e2e/
+docs/
+README.md
+agents.md
+*.sqlite
+*.sqlite3
+docker/data/

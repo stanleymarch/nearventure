@@ -1,0 +1,25 @@
+# Nearventure prod runtime image — keep it lean.
+# (dev deps, sources, caches, OS metadata — none of these belong in the runtime.)
+
+**/node_modules
+**/dist
+.git
+.github
+**/.env
+**/.env.*
+**/*.log
+logs/
+.tmp/
+playwright-report/
+e2e/test-results/
+e2e/playwright-report/
+docs/
+specs/
+tz/
+deploy/
+README.md
+readme-for-agents.md
+agents.md
+
+# Data services: the PBF / graph cache are runtime volumes, NOT baked in.
+docker/data/

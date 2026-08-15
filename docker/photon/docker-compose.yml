@@ -1,0 +1,55 @@
+# Nearventure — Local Photon geocoder (for bulk POI-base fill, NOT for prod)
+#
+# Photon — лёгкий геокодер на OpenStreetMap. Готовая база России — 3.2 ГБ.
+# Не требует импорта (в отличие от Nominatim с его часами).
+# Нет дневного лимита запросов.
+#
+# Сравнение подходов:
+#   Nominatim (self-hosted) — ~30 ГБ диск, ~8 ГБ RAM, часы импорта
+#   Photon (self-hosted)    — ~10 ГБ диск, ~4-6 ГБ RAM, 0 импорта (готовая база)
+#   Yandex Geocoder         — бесплатно 1000 запросов/сутки
+#   Nominatim (публичный)   — 1 req/s, но быстрый IP-бан при пачке
+#
+# Использование:
+#   1. Запустить контейнер (автоматически скачает базу РФ при первом запуске):
+#        docker compose -f docker/photon/docker-compose.yml up -d
+#      Первый запуск: скачивание 3.2 ГБ + распаковка (~5-10 мин).
+#      Последующие: запуск за секунды.
+#
+#   2. Геокодинг больше не выполняется этим репозиторием: сбор и геокодинг POI
+#      живут во внешнем пайплайне poi-toolkit (https://github.com/stanleymarch/poi-toolkit).
+#      Этот Photon-контейнер можно использовать напрямую через API для локальных экспериментов.
+#
+#   3. API напрямую: curl http://localhost:2322/search?q=Киров
+#
+#   4. Остановить:
+#        docker compose -f docker/photon/docker-compose.yml down
+#      Полностью удалить базу (если не нужна):
+#        docker compose -f docker/photon/docker-compose.yml down -v
+#
+# Ресурсы: ~10 ГБ диск (база), ~4-6 ГБ RAM (в работе)
+# Скорость: ~50 ms/запрос (in-memory index)
+# Для ПФО (~8000 адресов) — геокодинг займёт ~7 мин в 1 поток
+
+services:
+  photon:
+    # https://github.com/rtuszik/photon-docker
+    # Автоматически скачивает готовый индекс Photon для указанного региона.
+    image: rtuszik/photon-docker:latest
+    container_name: nearventure-photon
+    restart: unless-stopped
+    environment:
+      - REGION=russia                    # Готовая база России (3.2 ГБ)
+      - UPDATE_STRATEGY=DISABLED         # Не проверять обновления (экономит трафик)
+      - LOG_LEVEL=INFO
+    ports:
+      - "127.0.0.1:2322:2322"            # Local-only
+    volumes:
+      - photon_data:/photon/data         # База сохраняется между перезапусками
+    deploy:
+      resources:
+        limits:
+          memory: 6g                     # Photon держит индекс в памяти
+
+volumes:
+  photon_data:

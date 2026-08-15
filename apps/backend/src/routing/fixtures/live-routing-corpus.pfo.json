@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "name": "pfo-kirov-dev-graph",
+  "points": {
+    "kirov-center": { "lon": 49.666, "lat": 58.603 },
+    "kirov-south": { "lon": 49.6858, "lat": 58.593 },
+    "kirov-park": { "lon": 49.674, "lat": 58.607 }
+  },
+  "scenarios": [
+    {
+      "id": "kirov-direct-product-profiles",
+      "kind": "point-to-point",
+      "profiles": ["car", "bike", "bike_touring", "mtb", "mtb_leisure", "foot", "foot_scenic"],
+      "start": "kirov-center",
+      "finish": "kirov-south",
+      "expect": {
+        "networkConfirmed": true,
+        "minDistanceMeters": 500,
+        "maxDistanceMeters": 20000,
+        "maxDurationSeconds": 14400,
+        "maxLatencyMs": 60000,
+        "roadFacts": { "configuredOnly": true }
+      }
+    },
+    {
+      "id": "kirov-seeded-bike-loop",
+      "kind": "round-trip",
+      "profiles": ["bike"],
+      "start": "kirov-park",
+      "distanceMeters": 5000,
+      "seed": 20260809,
+      "expect": {
+        "networkConfirmed": true,
+        "minDistanceMeters": 2000,
+        "maxDistanceMeters": 20000,
+        "maxDurationSeconds": 21600,
+        "maxLatencyMs": 60000,
+        "maxClosureGapMeters": 100,
+        "overlapClass": "any",
+        "roadFacts": { "configuredOnly": true }
+      }
+    },
+    {
+      "id": "kirov-walking-reachable-area",
+      "kind": "isochrone",
+      "profiles": ["foot"],
+      "point": "kirov-center",
+      "timeLimitMinutes": 15,
+      "expect": {
+        "networkConfirmed": true,
+        "maxLatencyMs": 60000
+      }
+    }
+  ]
+}

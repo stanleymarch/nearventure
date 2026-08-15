@@ -1,0 +1,14 @@
+# Normalize line endings across platforms — avoids noisy CRLF/LF churn.
+* text=auto eol=lf
+
+# Binary files — never normalize
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.sqlite binary
+*.pbf binary
+*.hgt binary

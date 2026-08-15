@@ -1,0 +1,62 @@
+# Nearventure — Local Nominatim geocoder (for bulk POI-base fill, NOT for prod)
+#
+# Purpose: geocode ЕГРКН addresses (and any address) WITHOUT external API limits.
+# Yandex free tier = 1000/day → for ПФО (~13k ОКН without coords) that's ~13 days.
+# Self-hosted Nominatim has no limit — geocode the whole district in minutes.
+#
+# THIS IS A DEVELOPER-MACHINE TOOL, not part of the prod stack:
+#   - Run it once on your workstation to fill the POI base
+#   - Import the ПФО PBF (one-time, ~hours)
+#   - Geocoding for the POI pipeline now lives in the external poi-toolkit
+#     (https://github.com/stanleymarch/poi-toolkit); this container remains
+#     available as a general-purpose self-hosted geocoder via its API
+#   - Tear it down when done (frees ~30 GB disk)
+#
+# Resources for ПФО (731 MB PBF):
+#   - Import peak: ~8 GB RAM, ~30 GB disk, ~2-4 hours
+#   - Steady-state query: ~2 GB RAM
+#
+# Usage:
+#   1. Place the PBF at docker/data/pfo-latest.osm.pbf (already there for GraphHopper)
+#   2. First import (one-time):
+#        docker compose -f docker/nominatim/docker-compose.yml run --rm nominatim import --tokenize-import
+#        (or see Nominatim image docs for the exact import command)
+#   3. Start the API:
+#        docker compose -f docker/nominatim/docker-compose.yml up -d
+#   4. Tear down when done:
+#        docker compose -f docker/nominatim/docker-compose.yml down -v
+#
+# Rate: Nominatim's own policy on a self-hosted instance is YOURS — no 1000/day.
+# Still be gentle (it's single-threaded per query) — pace your requests.
+
+services:
+  nominatim:
+    # Official community image (mediawiki/nominatim-docker → now 'nominatim').
+    # Tag 4.4 tracks upstream Nominatim 4.4. Pin to avoid surprise re-imports.
+    image: mediawiki/nominatim:4.4
+    container_name: nearventure-nominatim
+    restart: unless-stopped
+    environment:
+      # URL of the Nominatim frontend served by the container.
+      - NOMINATIM_URI=http://localhost:8088
+      # Keep flatnode file for faster reverse lookups (worth the disk).
+      - FLATNODE_FILE=/var/lib/nominatim/flatnode
+      # Memory tuning — 12 GB free on the dev box; give import headroom.
+      - IMPORT_STYLE=admin
+      - PBF_PATH=/data/pfo-latest.osm.pbf
+    ports:
+      # Local-only — never expose a geocoder to the internet.
+      - "127.0.0.1:8088:8080"
+    volumes:
+      # Same PBF as GraphHopper (read-only).
+      - ../data:/data:ro
+      # Persistent index (survives restart; the import is expensive).
+      - nominatim_data:/var/lib/nominatim
+    # Nominatim is CPU/RAM-heavy on import; cap so the dev box stays usable.
+    deploy:
+      resources:
+        limits:
+          memory: 12g
+
+volumes:
+  nominatim_data:

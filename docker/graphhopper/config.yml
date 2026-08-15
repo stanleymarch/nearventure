@@ -1,0 +1,131 @@
+# Nearventure — GraphHopper routing config (GraphHopper 11+, master syntax).
+#
+# IMPORTANT: all graphhopper settings live under the top-level `graphhopper:` key
+# (Dropwizard wraps them). Mount this file at /graphhopper/config.yml
+# (the Dockerfile CMD passes it explicitly: java ... server /graphhopper/config.yml).
+#
+# Region: Volga Federal District (pfo-latest.osm.pbf, ~731 MB → graph-cache ~1.1 GB),
+# with SRTM elevation (auto-downloaded on first import).
+# CH for car (fast); bike/foot/mtb use LM (flexible — needed for round_trip
+# and alternative_route). For our round_trip scenario CH must be disabled on the
+# profile in use, so bike/foot/mtb are NOT in profiles_ch.
+#
+# ⚠️ CHANGES TO graph.encoded_values REQUIRE FULL PBF RE-IMPORT (delete graph-cache/).
+
+graphhopper:
+  # OSM input (mounted at /data). Overridable via -Ddw.graphhopper.datareader.file.
+  datareader.file: /data/pfo-latest.osm.pbf
+  # Local folder for the prepared graph (persisted → survives restarts).
+  graph.location: /data/graph-cache
+
+  # Extra road attributes available to profiles + path details.
+  # bike_* and mtb_* are distinct encoded-value sets in GH 11 (mtb.json
+  # references mtb_average_speed/mtb_priority/mtb_access). Adding them after a
+  # graph was already built requires a full re-import of the PBF.
+  graph.encoded_values: |
+    car_access, car_average_speed, country, road_class, roundabout, max_speed,
+    road_environment, surface, track_type, toll,
+    foot_access, foot_average_speed, foot_priority, foot_road_access, hike_rating,
+    average_slope, max_slope,
+    bike_access, bike_average_speed, bike_priority, bike_road_access, bike_network, mtb_rating,
+    mtb_access, mtb_average_speed, mtb_priority, mtb_network,
+    ferry_speed
+
+  # Routing profiles. GH 11 ships built-in custom models (car.json/bike.json/
+  # mtb.json/foot.json) inside the jar, but `custom_models.directory` (below)
+  # lets us override with local files — our nearventure-mtb.json is a scenic-tuned
+  # override of the canonical mtb.json (see docker/graphhopper/models/nearventure-mtb.json).
+  # The leisure model uses explicit distance influence and directed average_slope
+  # speed caps. Validate it against a disposable graph before production use;
+  # any encoded-value change still requires a full graph-cache/PBF re-import.
+  # NOTE: JSON files in custom_models.directory must NOT match built-in profile
+  # names (car/bike/foot/mtb), hence the "nearventure-" prefix.
+  #   bike = trekking / asphalt (avoids steep hills)
+  #   mtb  = mountain / forest / dirt tracks (tuned for nature pull, see above)
+  #   foot = walking; car kept for completeness.
+  profiles:
+    - name: car
+      custom_model_files: [car.json]
+    - name: bike
+      custom_model_files: [bike.json, bike_elevation.json]
+    - name: bike_touring
+      custom_model_files: [bike.json, bike_elevation.json, nearventure-bike-touring.json]
+    - name: mtb
+      custom_model_files: [nearventure-mtb.json]
+    - name: mtb_leisure
+      custom_model_files: [nearventure-mtb.json, nearventure-mtb-leisure.json]
+    - name: foot
+      custom_model_files: [foot.json, foot_elevation.json]
+    - name: foot_scenic
+      custom_model_files: [foot.json, foot_elevation.json, nearventure-foot-scenic.json]
+
+  # Contraction Hierarchies (speed mode): car only. bike/foot stay flexible so
+  # that round_trip / alternative_route / heading work (CH disallows them).
+  profiles_ch:
+    - profile: car
+
+  # Landmarks (hybrid) for the flexible profiles → fast-enough routing while
+  # keeping round_trip / alternative_route support (CH disallows them).
+  profiles_lm:
+    - profile: car
+    - profile: bike
+    - profile: bike_touring
+    - profile: mtb
+    - profile: mtb_leisure
+    - profile: foot
+    - profile: foot_scenic
+
+  # Elevation from SRTM (auto-downloaded on first import).
+  # P0 fix (2026-07-09): elevation-aware routing — slope affects speed/priority.
+  # See https://github.com/graphhopper/graphhopper/blob/master/docs/core/elevation.md
+  graph.elevation.provider: srtm
+  graph.elevation.cache_dir: /data/srtm-cache
+  graph.elevation.clear_elevation_cache: false
+  graph.elevation.dataaccess: RAM_STORE
+  graph.elevation.interpolate: bilinear
+  graph.elevation.edge_smoothing: ramer
+  graph.elevation.edge_smoothing.ramer.max_elevation: 5
+  graph.elevation.long_edge_sampling_distance: 60
+  graph.elevation.way_point_max_distance: 10
+  graph.elevation.interpolate_bridges_and_tunnels: true
+
+  # Allow long flexible routes (bike tours can be long).
+  routing.non_ch.max_waypoint_distance: 1000000
+  # Server-side protection against runaway requests (P2 fix).
+  routing.timeout_ms: 300000
+  routing.max_visited_nodes: 1000000
+  # Don't snap start/end points onto bridges, tunnels, or ferry terminals.
+  routing.snap_preventions_default: tunnel, bridge, ferry
+
+  # Required by GH 11: exclude irrelevant highways during import (perf + size).
+  # Empty = keep everything (our profiles include car, so we keep motorways too).
+  import.osm.ignored_highways: ''
+
+  # Drop tiny disconnected subgraphs (islands without ferries).
+  prepare.min_network_size: 200
+  prepare.subnetworks.threads: 1
+
+  # Custom model tuning directory — local override of bundled GH models.
+  # Our `nearventure-mtb.json` here overrides the canonical mtb.json from the jar,
+  # adding scenic pull (PATH/TRACK/FOOTWAY boost, dirt/gravel boost, paved penalty)
+  # and allowing higher mtb_rating/hike_rating for fun MTB.
+  custom_models.directory: /graphhopper/models
+
+# Dropwizard server — bind to 0.0.0.0 so the app can reach it on the docker net.
+server:
+  application_connectors:
+    - type: http
+      port: 8989
+      bind_host: 0.0.0.0
+  admin_connectors:
+    - type: http
+      port: 8990
+      bind_host: 0.0.0.0
+  request_log:
+    appenders: []
+
+logging:
+  appenders:
+    - type: console
+      time_zone: UTC
+      log_format: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"

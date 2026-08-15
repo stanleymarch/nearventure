@@ -1,0 +1,10 @@
+# LOCAL DEV override for GraphHopper — bigger heap + lightweight config.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d graphhopper
+# Do NOT use in production. Heap raised because the dev host has ~14 GB free;
+# production keeps the 1500m cap from docker-compose.yml.
+services:
+  graphhopper:
+    environment:
+      - JAVA_OPTS=-Xmx4g -Xms4g -XX:+UseParallelGC
+    volumes:
+      - ./graphhopper/config.dev.yml:/graphhopper/config.yml:ro

@@ -1,0 +1,104 @@
+/* Nearventure Interaction Contract
+ * Focus, touch, active, reduced-motion, reduced-transparency
+ */
+
+/* ── Focus visible ring ── */
+:focus-visible {
+  outline: 2px solid rgb(var(--nv-primary));
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ── Touch targets (mobile) ── */
+@media (pointer: coarse) {
+  .nv-touch-target {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* ── Active press feedback ── */
+.nv-press {
+  transition: transform 0.1s ease, opacity 0.1s ease;
+}
+.nv-press:active {
+  transform: scale(0.98);
+}
+@media (prefers-reduced-motion: reduce) {
+  .nv-press:active {
+    transform: none;
+  }
+}
+
+/* ── Glass panels ── */
+.nv-glass {
+  background: var(--nv-glass-bg);
+  backdrop-filter: blur(var(--nv-glass-blur));
+  -webkit-backdrop-filter: blur(var(--nv-glass-blur));
+}
+@media (prefers-reduced-transparency: reduce) {
+  .nv-glass {
+    background: rgb(var(--nv-surface));
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+/* ── Icon-only buttons ── */
+.nv-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  border: none;
+  background: transparent;
+  color: rgb(var(--nv-on-surface));
+  cursor: pointer;
+  border-radius: 9999px;
+  transition: background 0.15s;
+}
+.nv-icon-btn:hover {
+  background: rgb(var(--nv-primary) / 0.08);
+}
+.nv-icon-btn:focus-visible {
+  outline: 2px solid rgb(var(--nv-primary));
+  outline-offset: 2px;
+}
+
+/* ── Horizontal scroll affordance ── */
+.nv-h-scroll {
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+.nv-h-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+.nv-h-scroll::-webkit-scrollbar-thumb {
+  background: rgb(var(--nv-outline-variant));
+  border-radius: 4px;
+}
+.nv-h-scroll > * {
+  scroll-snap-align: start;
+}
+/* Edge fade for horizontal lists when scrollable — applies a right-edge fade */
+.nv-h-scroll-fade {
+  mask-image: linear-gradient(to right, black calc(100% - 40px), transparent 98%);
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 40px), transparent 98%);
+}
+/* Fallback for older browsers using pseudo-element on parent wrapper */
+.nv-h-scroll-fade-legacy {
+  position: relative;
+}
+.nv-h-scroll-fade-legacy::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 2px;
+  width: 32px;
+  background: linear-gradient(to right, transparent, rgb(var(--nv-surface) / 0.9));
+  pointer-events: none;
+}

@@ -1,0 +1,17 @@
+{
+  "name": "@nearventure/design-system",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tokens.css": "./src/tokens.css",
+    "./typography.css": "./src/typography.css",
+    "./interaction.css": "./src/interaction.css",
+    "./motion": "./src/motion.ts",
+    "./poi-categories": "./src/poi-categories.ts",
+    "./poi-meta": "./src/poi-meta.ts",
+    "./route-links": "./src/route-links.ts"
+  }
+}
