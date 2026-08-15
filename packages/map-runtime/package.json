@@ -11,6 +11,6 @@
   "dependencies": {
     "@nearventure/design-system": "*",
     "maplibre-gl": "^5.24.0",
-    "pmtiles": "^4.4.1"
+    "pmtiles": "^4.5.0"
   }
 }
