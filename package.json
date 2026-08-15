@@ -52,7 +52,7 @@
     "motion-v": "^2.3.0",
     "pmtiles": "^4.4.1",
     "reka-ui": "^2.10.1",
-    "sharp": "^0.33.5",
+    "sharp": "^0.35.3",
     "sqlite3": "^5.1.7",
     "tailwind-merge": "^3.6.0",
     "tailwindcss-animate": "^1.0.7",
